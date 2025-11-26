@@ -1,30 +1,51 @@
-const ApiResponce = require('../utils/ApiResponce').default;
+const ApiResponce = require('../utils/ApiResponce');
 const asyncHandler = require('express-async-handler');
 const Product  = require('../modules/ProductSchema')
+const {upload}=require("../configer/upload")
+const path = require('path');
+const uploadimages = upload("product").fields([
+    { name: 'product_image', maxCount: 10 },
+]);
 
-const createProduct = asyncHandler(async(req , res)=>{
-    // console.log("------000000000000000000000000000000000000-",req);
-    // console.log("======",req.body);
-    
-    const proData = req.body;
-    const  {name , category, packeging , image}= req.body;
-     if(!name || !category|| !packeging || !image){
-        return res.json(new ApiResponce(400 , "All Filds are require ",null,null))
-     }
+const createProduct = asyncHandler(async (req, res) => {
 
-     
-     console.log("product data : ",proData)
+    // --- 1. Extract ONLY ONE IMAGE (first one) ---
+    let imagePath = null;
 
-     const data = await Product.create(proData);
-     console.log("res :", data);
-     
-     if(!data){
-        return res.json(new ApiResponce(400 , "product not create ",null,null))
-     }
-        return res.json(new ApiResponce(200 , "product created in database",data,null))
-        
+    if (req.files?.product_image?.length > 0) {
+        const file = req.files.product_image[0];  // take first file only
+        imagePath = `uploads/product/${file.filename}`;
     }
-)
+
+    // --- 2. Parse packeging into Array ---
+    let packegingData;
+    try {
+        packegingData = JSON.parse(req.body.packeging);
+    } catch (err) {
+        return res.json(new ApiResponce(400, "Invalid Packaging JSON format", null, err.message));
+    }
+
+    const { name, category } = req.body;
+
+    // --- 3. Validate required fields ---
+    if (!name || !category || !packegingData) {
+        return res.json(new ApiResponce(400, "All fields are required", null, null));
+    }
+
+    // --- 4. Final cleaned product object ---
+    const productPayload = {
+        image: imagePath,        // ONLY a string here 🔥
+        name,
+        category,
+        packeging: packegingData
+    };
+
+    // --- 5. Save to DB ---
+    const data = await Product.create(productPayload);
+
+    return res.json(new ApiResponce(200, "Product created successfully", data, null));
+});
+
 
      
 const getAllProduct = asyncHandler(async(req , res)=>{
@@ -103,5 +124,6 @@ module.exports = {
     getAllProduct,
     getProductByCategory,
     getProductByid,
-    deleteProduct
+    deleteProduct,
+    uploadimages
 }

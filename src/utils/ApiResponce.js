@@ -8,4 +8,5 @@ class ApiResponse
         this.error = error;
     }
 }
-export default ApiResponse
+module.exports=ApiResponse
+// export default ApiResponse

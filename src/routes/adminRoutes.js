@@ -1,5 +1,5 @@
 const express = require('express');
-const { createProduct, getAllProduct, updateProduct, getProductByCategory, getProductByid, deleteProduct } = require('../controllers/adminController');
+const { createProduct, getAllProduct, updateProduct, getProductByCategory, getProductByid, deleteProduct, uploadimages } = require('../controllers/adminController');
 const router = express.Router()
 
 const multer = require('multer')
@@ -7,7 +7,7 @@ const multer = require('multer')
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-router.post('/createProduct' , createProduct)
+router.post('/createProduct' , uploadimages,createProduct)
 router.get('/getAllProduct' , getAllProduct)
 router.patch('/updateProduct/:id' , updateProduct)
 router.get('/getProductByCategory/:category' , getProductByCategory)
