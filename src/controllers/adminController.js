@@ -1,8 +1,10 @@
 const ApiResponce = require('../utils/ApiResponce');
 const asyncHandler = require('express-async-handler');
-const Product  = require('../modules/ProductSchema')
-const {upload}=require("../configer/upload")
+const Product = require('../modules/ProductSchema')
+const fs = require('fs')
+const { upload } = require("../configer/upload")
 const path = require('path');
+const { findOne } = require('../modules/OrderSchema');
 const uploadimages = upload("product").fields([
     { name: 'product_image', maxCount: 10 },
 ]);
@@ -47,20 +49,22 @@ const createProduct = asyncHandler(async (req, res) => {
 });
 
 
-     
-const getAllProduct = asyncHandler(async(req , res)=>{
-    const data = await Product.find()
+
+const getAllProduct = asyncHandler(async (req, res) => {
+    console.log("api call get all product !!");
     
-    console.log("all product data :-", data);
-  if (data.length > 0) {
-    return res.json(new ApiResponce(200, "All product fetched successfully!", data, null));
-  } else {
-    return res.json(new ApiResponce(404, "No product found", null, null));
-  }
+    const data = await Product.find()
+
+    // console.log("all product data :-", data);
+    if (data.length > 0) {
+        return res.json(new ApiResponce(200, "All product fetched successfully!", data, null));
+    } else {
+        return res.json(new ApiResponce(404, "No product found", null, null));
+    }
 })
 
-const updateProduct = asyncHandler(async(req , res)=>{
-     const productId = req.params.id;
+const updateProduct = asyncHandler(async (req, res) => {
+    const productId = req.params.id;
     const updateData = req.body;
 
     if (!updateData) {
@@ -76,8 +80,8 @@ const updateProduct = asyncHandler(async(req , res)=>{
     return res.json(new ApiResponce(200, "Product updated successfully", updated, null));
 })
 
-const getProductByCategory = asyncHandler(async(req , res)=>{
-     const { category } = req.params;
+const getProductByCategory = asyncHandler(async (req, res) => {
+    const { category } = req.params;
 
     const data = await Product.find({ category });
 
@@ -88,8 +92,8 @@ const getProductByCategory = asyncHandler(async(req , res)=>{
     return res.json(new ApiResponce(200, "Products fetched successfully", data, null));
 })
 
-const getProductByid = asyncHandler(async(req , res)=>{
-     const { id } = req.params;
+const getProductByid = asyncHandler(async (req, res) => {
+    const { id } = req.params;
 
     const data = await Product.findById(id);
 
@@ -102,15 +106,25 @@ const getProductByid = asyncHandler(async(req , res)=>{
 
 const deleteProduct = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    console.log(id);
-    
+    console.log("product id :", id);
+    const pro = await Product.findById(id)
+    console.log("product details :", pro.image);
+
+    fs.unlink(pro.image, (err) => {
+        if (err) {
+            console.error('An error occurred:', err);
+            return;
+        }
+        console.log('File deleted successfully!');
+    });
+
     if (!id) {
         return res.json(new ApiResponce(400, "Product ID not provided", null, null));
     }
 
     const deleted = await Product.findByIdAndDelete(id);
- console.log(deleted);
- 
+     console.log(deleted);
+
     if (!deleted) {
         return res.json(new ApiResponce(404, "Product not found", null, null));
     }

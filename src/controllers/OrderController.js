@@ -4,6 +4,7 @@ const ApiResponce = require('../utils/ApiResponce')
 
 const createOrder = asyncHandler(async (req, res) => {
     const orderData = req.body;
+    console.log("request body :", orderData);
 
     if (!orderData) {
         return res.json(new ApiResponce(400, "Order data is required", null, null));
@@ -89,28 +90,31 @@ const getOrdersByCity = asyncHandler(async (req, res) => {
     return res.json(new ApiResponce(200, "Orders fetched successfully", data, null));
 });
 
-const updateTotalBill = asyncHandler(async (req, res) => {
+const updateOrderFild = asyncHandler(async (req, res) => {
     const orderId = req.params.id;
-    const { totalBill } = req.body;
+    const { orderStatus } = req.body;
+    // console.log(orderStatus);
 
-    if (totalBill == null) {
-        return res.json(new ApiResponce(400, "totalBill is required", null, null));
+    if (orderStatus == null) {
+        return res.json(new ApiResponce(400, "Order status is required", null, null));
     }
 
     const updated = await Order.findByIdAndUpdate(
         orderId,
-        { totalBill },
+        { orderStatus },
         { new: true }
     );
 
-    console.log("Total Bill Updated:", updated);
+    console.log("orderStatus Updated:", updated);
 
     if (!updated) {
         return res.json(new ApiResponce(404, "Order not found", null, null));
     }
 
-    return res.json(new ApiResponce(200, "Total bill updated successfully", updated, null));
+    return res.json(new ApiResponce(200, "orderStatus updated successfully", updated, null));
 });
+
+
 
 module.exports = {
     createOrder,
@@ -119,6 +123,6 @@ module.exports = {
     updateOrder,
     deleteOrder,
     getOrdersByCity,
-    updateTotalBill
+    updateOrderFild
 };
 
