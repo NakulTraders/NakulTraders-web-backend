@@ -1,17 +1,21 @@
 const asyncHandler = require('express-async-handler')
 const ApiResponce = require('../utils/ApiResponce')
 const CustomizeOrder = require('../modules/CustomizeOrderSchema')
+const {getNextOrderId} = require('../utils/getNextOrderId')
 
 const CustomizeOrderCreate = asyncHandler(async (req, res)=>{
     const orderData = req.body;
     // console.log("request body :",orderData);
     
+        const orderId = await getNextOrderId("C");
+    
     if (!orderData) {
         return res.json(new ApiResponce(400, "Order data is required", null, null));
     }
 
-    const order = await CustomizeOrder.create(orderData);
+    const order = await CustomizeOrder.create({...orderData , orderId});
 
+    // console.log("New customize order created:",order);
     console.log("New customize order created:");
 
     return res.json(new ApiResponce(201, "Order created successfully!", order, null));

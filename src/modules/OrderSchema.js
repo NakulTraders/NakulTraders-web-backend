@@ -26,6 +26,8 @@ const OrderSchema = new mongoose.Schema({
     transportation: { type: String, required: true },
     GST: { type: String,  },
     address: { type: String },
+    
+    orderId: {type: String, required: true, unique: true,}, // order id
 
     productOrders: [ProductOrderSchema],               // list of all products in order
 

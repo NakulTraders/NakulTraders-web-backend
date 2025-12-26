@@ -8,6 +8,9 @@ const CustomizeOrderSchema = new mongoose.Schema({
     GST: { type: String,  },
     address: { type: String },
 
+    orderId: {type: String, required: true, unique: true,}, // order id
+
+
     textOrder: [{type:String , required:true}],               // list of all products in order
 
     orderStatus: { type: String, enum:["pending","accept","reject"] , default:"pending" }        // sum(product amounts + transportation)
