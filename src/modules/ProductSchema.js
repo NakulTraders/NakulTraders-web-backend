@@ -1,32 +1,36 @@
 const mongoose = require('mongoose')
 
 const packeging = mongoose.Schema({
-    productQuentity :{type : String},
-    price : {type : Number},
-    OrderUnit : {type : String , },
-    bigPackagSize : {type: Number},
-    bpPrice:{type:Number}
+    productQuentity: { type: String },
+    price: { type: Number },
+    OrderUnit: { type: String, },
+    bigPackagSize: { type: Number },
+    bpPrice: { type: Number }
 });
 
 const ProductSchema = mongoose.Schema({
-    name : {
+    name: {
         type: String,
-        require : true
+        require: true
     },
-    category : {
+    category: {
         type: String,
-        require : true
+        require: true
     },
-    packeging : {
+    packeging: {
         type: [packeging],
-        default : []
+        default: []
     },
-    image :{
-        type : String,
-        require : true
+    image: {
+        url: {
+            type: String
+        },
+        public_id: {
+            type: String
+        }
     }
-},{
-    timestamps : true
+}, {
+    timestamps: true
 });
 
 module.exports = mongoose.model('Product', ProductSchema);

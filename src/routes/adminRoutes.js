@@ -1,5 +1,5 @@
 const express = require('express');
-const { createProduct, getAllProduct, updateProduct, getProductByCategory, getProductByid, deleteProduct, uploadimages } = require('../controllers/adminController');
+const { createProduct, getAllProduct, updateProduct, getProductByCategory, getProductByid, deleteProduct, updateProductImage } = require('../controllers/adminController');
 const router = express.Router()
 
 const multer = require('multer');
@@ -8,16 +8,21 @@ const { getCustomizeAllOrders, updateCustomizeOrder, deleteCustomizeOrder, updat
 const { downloadSingleOrderExcel } = require('../controllers/orderExcel.controller');
 const { downloadCustomOrderExcel } = require('../controllers/customOrderExcel.controller');
 
+// const upload = require('../configer/upload')
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-router.post('/createProduct' , uploadimages,createProduct)
+router.post('/createProduct' ,  upload.fields([{ name: "product_image", maxCount: 1 }]) ,createProduct)
 router.get('/getAllProduct' , getAllProduct)
-router.patch('/updateProduct/:id' , updateProduct)
+router.patch('/updateProduct/:id' , upload.fields([{ name: "product_image", maxCount: 1 }]), updateProduct)
 router.get('/getProductByCategory/:category' , getProductByCategory)
 router.get('/getProductByid/:id' , getProductByid)
-router.get('/getProductByid/:id' , getProductByid)
 router.get('/productDelete/:id', deleteProduct);
+router.patch(
+  "/updateProductImage/:id/image",
+  upload.single("product_image"),
+  updateProductImage
+);
 
 router.get('/getAllOrder', getAllOrders);
 router.patch('/updateOrder/:id', updateOrder);

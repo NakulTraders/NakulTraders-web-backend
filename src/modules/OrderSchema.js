@@ -9,7 +9,7 @@ const PackagingSchema = new mongoose.Schema({
 });
 
 const ProductOrderSchema = new mongoose.Schema({
-    image: { type: String },
+    image: {  url: { type: String }, public_id: { type: String  }},
     name: { type: String, required: true },
     productId: { type: String, required: true },
     category: { type: String },

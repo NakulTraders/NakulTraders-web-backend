@@ -1,53 +1,112 @@
 const ApiResponce = require('../utils/ApiResponce');
 const asyncHandler = require('express-async-handler');
 const Product = require('../modules/ProductSchema')
-const fs = require('fs')
-const { upload } = require("../configer/upload")
-const path = require('path');
-const { findOne } = require('../modules/OrderSchema');
-const uploadimages = upload("product").fields([
-    { name: 'product_image', maxCount: 10 },
-]);
+const cloudinary = require('../configer/cloudinary')
+
+// const fs = require('fs')
+// const { upload } = require("../configer/upload")
+// const path = require('path');
+// const { findOne } = require('../modules/OrderSchema');
+// const uploadimages = upload("product").fields([
+//     { name: 'product_image', maxCount: 10 },
+// ]);
+
+
+// const createProduct = asyncHandler(async (req, res) => {
+
+//     // --- 1. Extract ONLY ONE IMAGE (first one) ---
+//     let imagePath = null;
+
+//     if (req.files?.product_image?.length > 0) {
+//         const file = req.files.product_image[0];  // take first file only
+//         imagePath = `uploads/product/${file.filename}`;
+//     }
+
+//     // --- 2. Parse packeging into Array ---
+//     let packegingData;
+//     try {
+//         packegingData = JSON.parse(req.body.packeging);
+//     } catch (err) {
+//         return res.json(new ApiResponce(400, "Invalid Packaging JSON format", null, err.message));
+//     }
+
+//     const { name, category } = req.body;
+
+//     // --- 3. Validate required fields ---
+//     if (!name || !category || !packegingData) {
+//         return res.json(new ApiResponce(400, "All fields are required", null, null));
+//     }
+
+//     // --- 4. Final cleaned product object ---
+//     const productPayload = {
+//         image: imagePath,        // ONLY a string here 🔥
+//         name,
+//         category,
+//         packeging: packegingData
+//     };
+
+//     // --- 5. Save to DB ---
+//     const data = await Product.create(productPayload);
+
+//     return res.json(new ApiResponce(200, "Product created successfully", data, null));
+// });
 
 const createProduct = asyncHandler(async (req, res) => {
+    console.log("createProduct api call :", req.file);
 
-    // --- 1. Extract ONLY ONE IMAGE (first one) ---
-    let imagePath = null;
+    // --- 1. IMAGE UPLOAD (CLOUDINARY) ---
+    let imageUrl = null;
 
     if (req.files?.product_image?.length > 0) {
-        const file = req.files.product_image[0];  // take first file only
-        imagePath = `uploads/product/${file.filename}`;
+        const file = req.files.product_image[0];
+
+        const uploadResult = await cloudinary.uploader.upload(
+            `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
+            {
+                folder: "products"
+            }
+        );
+
+        imageUrl = {
+            url: uploadResult.secure_url,
+            public_id: uploadResult.public_id
+        };
     }
 
-    // --- 2. Parse packeging into Array ---
+    // --- 2. Parse packaging ---
     let packegingData;
     try {
         packegingData = JSON.parse(req.body.packeging);
     } catch (err) {
-        return res.json(new ApiResponce(400, "Invalid Packaging JSON format", null, err.message));
+        return res.json(
+            new ApiResponce(400, "Invalid Packaging JSON format", null, err.message)
+        );
     }
 
     const { name, category } = req.body;
 
-    // --- 3. Validate required fields ---
-    if (!name || !category || !packegingData) {
-        return res.json(new ApiResponce(400, "All fields are required", null, null));
+    // --- 3. Validation ---
+    if (!name || !category || !packegingData || !imageUrl) {
+        return res.json(
+            new ApiResponce(400, "All fields are required", null, null)
+        );
     }
 
-    // --- 4. Final cleaned product object ---
+    // --- 4. Product payload ---
     const productPayload = {
-        image: imagePath,        // ONLY a string here 🔥
+        image: imageUrl, // ✅ Cloudinary URL
         name,
         category,
         packeging: packegingData
     };
 
-    // --- 5. Save to DB ---
+    // --- 5. Save ---
     const data = await Product.create(productPayload);
 
-    return res.json(new ApiResponce(200, "Product created successfully", data, null));
+    return res.json(
+        new ApiResponce(200, "Product created successfully", data, null)
+    );
 });
-
 
 
 const getAllProduct = asyncHandler(async (req, res) => {
@@ -63,22 +122,132 @@ const getAllProduct = asyncHandler(async (req, res) => {
     }
 })
 
+
+// const updateProduct = asyncHandler(async (req, res) => {
+//     const productId = req.params.id;
+//     const updateData = req.body;
+
+//     if (!updateData) {
+//         return res.json(new ApiResponce(400, "Update data not provided", null, null));
+//     }
+
+//     const updated = await Product.findByIdAndUpdate(productId, updateData, { new: true });
+
+//     if (!updated) {
+//         return res.json(new ApiResponce(404, "Product not found", null, null));
+//     }
+
+//     return res.json(new ApiResponce(200, "Product updated successfully", updated, null));
+// })
+
 const updateProduct = asyncHandler(async (req, res) => {
     const productId = req.params.id;
     const updateData = req.body;
 
     if (!updateData) {
-        return res.json(new ApiResponce(400, "Update data not provided", null, null));
+        return res.json(
+            new ApiResponce(400, "Update data not provided", null, null)
+        );
     }
 
-    const updated = await Product.findByIdAndUpdate(productId, updateData, { new: true });
+    // --- 🔥 Handle image update ONLY if new image is sent ---
+    if (req.files?.product_image?.length > 0) {
+        const file = req.files.product_image[0];
+
+        // Get existing product (for old image delete)
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.json(
+                new ApiResponce(404, "Product not found", null, null)
+            );
+        }
+
+        // Delete old Cloudinary image (if exists)
+        if (product.image?.public_id) {
+            await cloudinary.uploader.destroy(product.image.public_id);
+        }
+
+        // Upload new image to Cloudinary
+        const result = await cloudinary.uploader.upload(file.path, {
+            folder: "products"
+        });
+
+        // Attach new image data to update payload
+        updateData.image = {
+            url: result.secure_url,
+            public_id: result.public_id
+        };
+    }
+
+    const updated = await Product.findByIdAndUpdate(
+        productId,
+        updateData,
+        { new: true }
+    );
 
     if (!updated) {
-        return res.json(new ApiResponce(404, "Product not found", null, null));
+        return res.json(
+            new ApiResponce(404, "Product not found", null, null)
+        );
     }
 
-    return res.json(new ApiResponce(200, "Product updated successfully", updated, null));
-})
+    return res.json(
+        new ApiResponce(200, "Product updated successfully", updated, null)
+    );
+});
+
+
+const updateProductImage = asyncHandler(async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        console.log("Update Image - Product ID:", id);
+        console.log("Update Image - File:", req.file);
+
+        const product = await Product.findById(id);
+        if (!product) {
+            return res.json(new ApiResponce(404, "Product not found", null, null));
+        }
+
+        if (!req.file) {
+            return res.json(new ApiResponce(400, "Image required", null, null));
+        }
+
+        // If product already has cloudinary image → delete it
+        if (product.image?.public_id) {
+            console.log("Deleting old image:", product.image.public_id);
+            await cloudinary.uploader.destroy(product.image.public_id);
+        }
+
+        // Upload new image using buffer
+        console.log("Uploading new image to Cloudinary...");
+        const result = await cloudinary.uploader.upload(
+            `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
+            {
+                folder: "products",
+            }
+        );
+
+        console.log("Cloudinary upload result:", result);
+
+        // Update ONLY image field
+        product.image = {
+            url: result.secure_url,
+            public_id: result.public_id,
+        };
+
+        await product.save();
+
+        return res.json(
+            new ApiResponce(200, "Product image updated", product, null)
+        );
+    } catch (error) {
+        console.error("Update Image Error:", error);
+        return res.status(500).json(
+            new ApiResponce(500, "Server error", null, error.message)
+        );
+    }
+});
 
 const getProductByCategory = asyncHandler(async (req, res) => {
     const { category } = req.params;
@@ -104,32 +273,71 @@ const getProductByid = asyncHandler(async (req, res) => {
     return res.json(new ApiResponce(200, "Product fetched successfully", data, null));
 })
 
+// const deleteProduct = asyncHandler(async (req, res) => {
+//     const { id } = req.params;
+//     console.log("delete product APi call :");
+//     const pro = await Product.findById(id)
+//     // console.log("product details :", pro.image);
+
+//     fs.unlink(pro.image, (err) => {
+//         if (err) {
+//     return res.json(new ApiResponce(400, "An error occurred:",null, err));
+//          }
+//         console.log('File deleted successfully!');
+//     });
+
+//     if (!id) {
+//         return res.json(new ApiResponce(400, "Product ID not provided", null, null));
+//     }
+
+//     const deleted = await Product.findByIdAndDelete(id);
+//     //  console.log(deleted);
+
+//     if (!deleted) {
+//         return res.json(new ApiResponce(404, "Product not found", null, null));
+//     }
+
+//     return res.json(new ApiResponce(200, "Product deleted successfully", deleted, null));
+// });
+
+
 const deleteProduct = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    console.log("delete product APi call :");
-    const pro = await Product.findById(id)
-    // console.log("product details :", pro.image);
-
-    fs.unlink(pro.image, (err) => {
-        if (err) {
-    return res.json(new ApiResponce(400, "An error occurred:",null, err));
-         }
-        console.log('File deleted successfully!');
-    });
+    console.log("delete product API call :");
 
     if (!id) {
-        return res.json(new ApiResponce(400, "Product ID not provided", null, null));
+        return res.json(
+            new ApiResponce(400, "Product ID not provided", null, null)
+        );
+    }
+
+    const pro = await Product.findById(id);
+
+    if (!pro) {
+        return res.json(
+            new ApiResponce(404, "Product not found", null, null)
+        );
+    }
+
+    // 🔥 Delete image from Cloudinary instead of local file system
+    if (pro.image?.public_id) {
+        await cloudinary.uploader.destroy(pro.image.public_id);
+        console.log("Cloudinary image deleted successfully!");
     }
 
     const deleted = await Product.findByIdAndDelete(id);
-    //  console.log(deleted);
 
     if (!deleted) {
-        return res.json(new ApiResponce(404, "Product not found", null, null));
+        return res.json(
+            new ApiResponce(404, "Product not found", null, null)
+        );
     }
 
-    return res.json(new ApiResponce(200, "Product deleted successfully", deleted, null));
+    return res.json(
+        new ApiResponce(200, "Product deleted successfully", deleted, null)
+    );
 });
+
 
 module.exports = {
     createProduct,
@@ -138,5 +346,6 @@ module.exports = {
     getProductByCategory,
     getProductByid,
     deleteProduct,
-    uploadimages
+    // uploadimages,
+    updateProductImage
 }
